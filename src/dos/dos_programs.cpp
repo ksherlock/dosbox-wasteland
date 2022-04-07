@@ -1347,7 +1347,13 @@ void DOS_SetupPrograms(void) {
 	/*Add Messages */
 
 	MSG_Add("PROGRAM_MOUNT_CDROMS_FOUND","CDROMs found: %d\n");
-	MSG_Add("PROGRAM_MOUNT_STATUS_2","Drive %c is mounted as %s\n");
+	MSG_Add("PROGRAM_MOUNT_STATUS_2",
+#ifdef WASTELAND
+		""
+#else
+		"Drive %c is mounted as %s\n"
+#endif	
+		);
 	MSG_Add("PROGRAM_MOUNT_STATUS_1","Current mounted drives are:\n");
 	MSG_Add("PROGRAM_MOUNT_ERROR_1","Directory %s doesn't exist.\n");
 	MSG_Add("PROGRAM_MOUNT_ERROR_2","%s isn't a directory\n");

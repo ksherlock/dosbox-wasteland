@@ -1584,6 +1584,16 @@ public:
 		case MK_printscreen:
 			key=SDLK_PRINT;
 			break;
+#if defined(WASTELAND) && defined(MACOSX)
+		case MK_f:
+			key = SDLK_f;
+			break;
+			
+		case MK_q:
+			key = SDLK_q;
+			break;
+#endif
+
 		}
 		sprintf(buf,"%s \"key %d%s%s%s\"",
 			entry,
@@ -2066,6 +2076,11 @@ static void CreateDefaultBinds(void) {
 	sprintf(buffer,"mod_1 \"key %d\"",SDLK_LCTRL);CreateStringBind(buffer);
 	sprintf(buffer,"mod_2 \"key %d\"",SDLK_RALT);CreateStringBind(buffer);
 	sprintf(buffer,"mod_2 \"key %d\"",SDLK_LALT);CreateStringBind(buffer);
+	
+#if defined(WASTELAND) && defined(MACOSX)
+	sprintf(buffer,"mod_3 \"key %d\"",SDLK_RMETA);CreateStringBind(buffer);
+	sprintf(buffer,"mod_3 \"key %d\"",SDLK_LMETA);CreateStringBind(buffer);
+#endif
 	for (CHandlerEventVector_it hit=handlergroup.begin();hit!=handlergroup.end();hit++) {
 		(*hit)->MakeDefaultBind(buffer);
 		CreateStringBind(buffer);
@@ -2507,6 +2522,8 @@ void MAPPER_StartUp(Section * sec) {
 
 	Prop_path* pp = section->Get_path("mapperfile");
 	mapper.filename = pp->realpath;
+#ifndef WASTELAND
 	MAPPER_AddHandler(&MAPPER_Run,MK_f1,MMOD1,"mapper","Mapper");
+#endif
 }
 

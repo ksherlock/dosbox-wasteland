@@ -1,5 +1,5 @@
- /*
- *  Copyright (C) 2002-2010  The DOSBox Team
+/*
+ *  Copyright (C) 2013  inXile entertainment
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,30 +16,28 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef DOSBOX_MAPPER_H
-#define DOSBOX_MAPPER_H
+#ifndef __WASTELAND_EXT_H__
+#define __WASTELAND_EXT_H__
 
-enum MapKeys {
-	MK_f1,MK_f2,MK_f3,MK_f4,MK_f5,MK_f6,MK_f7,MK_f8,MK_f9,MK_f10,MK_f11,MK_f12,
-	MK_return,MK_kpminus,MK_scrolllock,MK_printscreen,MK_pause
-#if defined(WASTELAND) && defined(MACOSX)
-	,MK_f, MK_q
+struct SDL_AudioSpec;
+struct SDL_Surface;
+
+namespace WastelandEXT
+{
+	void Init();
+	void Purge();
+	
+	void InitAudio(SDL_AudioSpec* mixer);
+	void UpdateAudio(Bit8u *stream, int len);
+	
+	bool PreUpdate(Bitu width, Bitu height, Bitu bpp, Bitu pitch, Bit8u * data, Bit8u * pal, Bitu outPitch);
+	void Update( SDL_Surface* surface );
+	void PostUpdate();
+
+#ifdef DOSBOX_KEYBOARD_H
+	bool KeyEvent(KBD_KEYS keytype,bool pressed);
 #endif
-};
-
-typedef void (MAPPER_Handler)(bool pressed);
-void MAPPER_AddHandler(MAPPER_Handler * handler,MapKeys key,Bitu mods,char const * const eventname,char const * const buttonname);
-void MAPPER_Init(void);
-void MAPPER_StartUp(Section * sec);
-void MAPPER_Run(bool pressed);
-void MAPPER_RunInternal();
-void MAPPER_LosingFocus(void);
-
-
-#define MMOD1 0x1
-#define MMOD2 0x2
-#if defined(WASTELAND) && defined(MACOSX)
-#define MMOD3 0x4
-#endif
+	bool MouseEvent(int button, bool pressed);
+}
 
 #endif

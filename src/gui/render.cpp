@@ -200,6 +200,24 @@ static void RENDER_Halt( void ) {
 	render.active=false;
 }
 
+#ifdef WASTELAND
+#include "wasteland_ext.h"
+void RENDER_ForceNormal3x()
+{
+	render.scale.op = scalerOpNormal;render.scale.size = 3;
+	RENDER_CallBack( GFX_CallBackReset );
+}
+
+#ifdef MACOSX
+void RENDER_ForceAdvMame3x()
+{
+	render.scale.op = scalerOpAdvMame;render.scale.size = 3;
+	RENDER_CallBack( GFX_CallBackReset );
+}
+#endif
+
+#endif
+		
 extern Bitu PIC_Ticks;
 void RENDER_EndUpdate( bool abort ) {
 	if (GCC_UNLIKELY(!render.updating))
@@ -219,6 +237,30 @@ void RENDER_EndUpdate( bool abort ) {
 		CAPTURE_AddImage( render.src.width, render.src.height, render.src.bpp, pitch,
 			flags, fps, (Bit8u *)&scalerSourceCache, (Bit8u*)&render.pal.rgb );
 	}
+	#ifdef WASTELAND
+		static int every = 0;
+		if( !render.scale.outWrite )
+		{
+			if( ++every == 8 )
+			{
+				GFX_StartUpdate( render.scale.outWrite, render.scale.outPitch );
+				goto FORCE_UPDATE;
+			}
+		}
+		else
+		{
+		FORCE_UPDATE:
+			every = 0;
+			WastelandEXT::PreUpdate(
+				render.src.width,
+				render.src.height,
+				render.src.bpp,
+				render.scale.cachePitch,
+				(Bit8u *)&scalerSourceCache,
+				(Bit8u*)&render.pal.rgb,
+				render.scale.outPitch );
+		}
+	#endif
 	if ( render.scale.outWrite ) {
 		GFX_EndUpdate( abort? NULL : Scaler_ChangedLines );
 		render.frameskip.hadSkip[render.frameskip.index] = 0;
@@ -231,6 +273,12 @@ void RENDER_EndUpdate( bool abort ) {
 		LOG_MSG( "Skipped frame %d %d", PIC_Ticks, (total * 100) / RENDER_SKIP_CACHE );
 #endif
 	}
+	#ifdef WASTELAND
+	if( every == 0 )
+	{
+		WastelandEXT::PostUpdate();
+	}
+	#endif
 	render.frameskip.index = (render.frameskip.index + 1) & (RENDER_SKIP_CACHE - 1);
 	render.updating=false;
 }
@@ -627,8 +675,10 @@ void RENDER_Init(Section * sec) {
 	if(!running) render.updating=true;
 	running = true;
 
+#ifndef WASTELAND
 	MAPPER_AddHandler(DecreaseFrameSkip,MK_f7,MMOD1,"decfskip","Dec Fskip");
 	MAPPER_AddHandler(IncreaseFrameSkip,MK_f8,MMOD1,"incfskip","Inc Fskip");
+#endif
 	GFX_SetTitle(-1,render.frameskip.max,false);
 }
 

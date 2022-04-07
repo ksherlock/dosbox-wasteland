@@ -2051,8 +2051,10 @@ void DEBUG_Init(Section* sec) {
 
 	MSG_Add("DEBUG_CONFIGFILE_HELP","Debugger related options.\n");
 	DEBUG_DrawScreen();
+#ifndef WASTELAND
 	/* Add some keyhandlers */
 	MAPPER_AddHandler(DEBUG_Enable,MK_pause,MMOD2,"debugger","Debugger");
+#endif
 	/* Clear the TBreakpoint list */
 	memset((void*)&codeViewData,0,sizeof(codeViewData));
 	/* setup debug.com */

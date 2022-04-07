@@ -495,6 +495,15 @@ void Mouse_CursorSet(float x,float y) {
 	DrawCursor();
 }
 
+#ifdef WASTELAND
+static int last_consumed_x = 0, last_consumed_y = 0;
+void Mouse_CursorGet(int& x,int& y)
+{
+	x=last_consumed_x;
+	y=last_consumed_y;
+}
+#endif
+
 void Mouse_ButtonPressed(Bit8u button) {
 	switch (button) {
 #if (MOUSE_BUTTONS >= 1)
@@ -574,6 +583,9 @@ static void Mouse_SetSensitivity(Bit16u px, Bit16u py, Bit16u dspeed){
 		mouse.senv_x=(static_cast<float>(px)*px)/3600.0f +1.0f/3.0f;
 		mouse.senv_y=(static_cast<float>(py)*py)/3600.0f +1.0f/3.0f;
      }
+#ifdef WASTELAND
+	mouse.senv_x /= 1.6f;
+#endif
 }
 
 
@@ -702,7 +714,13 @@ static Bitu INT33_Handler(void) {
 		break;
 	case 0x03:	/* Return position and Button Status */
 		reg_bx=mouse.buttons;
+#ifdef WASTELAND
+		last_consumed_x =
+#endif
 		reg_cx=POS_X;
+#ifdef WASTELAND
+		last_consumed_y =
+#endif
 		reg_dx=POS_Y;
 		break;
 	case 0x04:	/* Position Mouse */

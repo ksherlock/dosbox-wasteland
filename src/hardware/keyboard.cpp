@@ -218,7 +218,18 @@ static Bitu read_p64(Bitu port,Bitu iolen) {
 	return status;
 }
 
+#ifdef WASTELAND
+#include "wasteland_ext.h"
+#endif
+
 void KEYBOARD_AddKey(KBD_KEYS keytype,bool pressed) {
+#ifdef WASTELAND
+	if( WastelandEXT::KeyEvent(keytype, pressed) )
+	{
+		KEYBOARD_ClrBuffer();
+		return;
+	}
+#endif
 	Bit8u ret=0;bool extend=false;
 	switch (keytype) {
 	case KBD_esc:ret=1;break;

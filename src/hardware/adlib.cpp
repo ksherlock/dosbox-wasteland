@@ -678,7 +678,9 @@ Module::Module( Section* configuration ) : Module_base(configuration) {
 	WriteHandler[2].Install(base+8,OPL_Write,IO_MB, 2);
 	ReadHandler[2].Install(base+8,OPL_Read,IO_MB, 1);
 
+#ifndef WASTELAND
 	MAPPER_AddHandler(OPL_SaveRawEvent,MK_f7,MMOD1|MMOD2,"caprawopl","Cap OPL");
+#endif
 }
 
 Module::~Module() {

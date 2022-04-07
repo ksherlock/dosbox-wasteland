@@ -524,7 +524,9 @@ void BIOS_SetupDisks(void) {
 /* Setup the Bios Area */
 	mem_writeb(BIOS_HARDDISK_COUNT,2);
 
+#ifndef WASTELAND
 	MAPPER_AddHandler(swapInNextDisk,MK_f4,MMOD1,"swapimg","Swap Image");
+#endif
 	killRead = false;
 	swapping_requested = false;
 }

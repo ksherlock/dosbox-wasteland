@@ -79,9 +79,13 @@ public:
 	void StartUp();
 	bool PrintConfig(char const * const configfilename) const;
 	bool ParseConfigFile(char const * const configfilename);
+	bool ParseConfigString(char const * const configstring);
 	void ParseEnv(char ** envp);
 	bool SecureMode() const { return secure_mode; }
 	void SwitchToSecureMode() { secure_mode = true; }//can't be undone
+
+private:
+	bool ParseConfigStream(std::basic_istream<char, std::char_traits<char> >& in);
 };
 
 #endif

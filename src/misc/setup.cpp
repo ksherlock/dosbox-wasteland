@@ -768,21 +768,8 @@ Section* Config::GetSectionFromProperty(char const * const prop) const{
 	return NULL;
 }
 
-
-bool Config::ParseConfigFile(char const * const configfilename){
-	static bool first_configfile = true;
-	ifstream in(configfilename);
-	if (!in) return false;
-	const char * settings_type = first_configfile?"primary":"additional";
-	first_configfile = false;
-	LOG_MSG("CONFIG:Loading %s settings from config file %s", settings_type,configfilename);
-
-	//Get directory from configfilename, used with relative paths.
-	current_config_dir=configfilename;
-	std::string::size_type pos = current_config_dir.rfind(CROSS_FILESPLIT);
-	if(pos == std::string::npos) pos = 0; //No directory then erase string
-	current_config_dir.erase(pos);
-
+bool Config::ParseConfigStream(basic_istream<char, char_traits<char> >& in)
+{
 	string gegevens;
 	Section* currentsection = NULL;
 	Section* testsec = NULL;
@@ -822,6 +809,30 @@ bool Config::ParseConfigFile(char const * const configfilename){
 	}
 	current_config_dir.clear();//So internal changes don't use the path information
 	return true;
+}
+
+bool Config::ParseConfigString(char const * const configstring)
+{
+	stringstream ss(configstring);
+	return ParseConfigStream( ss );
+}
+
+bool Config::ParseConfigFile(char const * const configfilename){
+	ifstream inF(configfilename);
+	if (!inF) return false;
+
+	static bool first_configfile = true;
+	const char * settings_type = first_configfile?"primary":"additional";
+	first_configfile = false;
+	LOG_MSG("CONFIG:Loading %s settings from config file %s", settings_type,configfilename);
+
+	//Get directory from configfilename, used with relative paths.
+	current_config_dir=configfilename;
+	std::string::size_type pos = current_config_dir.rfind(CROSS_FILESPLIT);
+	if(pos == std::string::npos) pos = 0; //No directory then erase string
+	current_config_dir.erase(pos);
+
+	return ParseConfigStream(inF);
 }
 
 void Config::ParseEnv(char ** envp) {

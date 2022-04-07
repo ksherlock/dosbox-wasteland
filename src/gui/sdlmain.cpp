@@ -222,6 +222,10 @@ struct SDL_Block {
 	Bit8u raltstate;
 };
 
+#ifdef WASTELAND
+#include "wasteland_ext.h"
+#endif
+
 static SDL_Block sdl;
 
 extern const char* RunningProgram;
@@ -235,14 +239,17 @@ void GFX_SetTitle(Bit32s cycles,Bits frameskip,bool paused){
 	static Bits internal_frameskip=0;
 	if(cycles != -1) internal_cycles = cycles;
 	if(frameskip != -1) internal_frameskip = frameskip;
+#ifdef WASTELAND
+	SDL_WM_SetCaption("Wasteland",VERSION);
+#else
 	if(CPU_CycleAutoAdjust) {
 		sprintf(title,"DOSBox %s, Cpu speed: max %3d%% cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
 	} else {
 		sprintf(title,"DOSBox %s, Cpu speed: %8d cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
 	}
-
 	if(paused) strcat(title," PAUSED");
 	SDL_WM_SetCaption(title,VERSION);
+#endif
 }
 
 static void PauseDOSBox(bool pressed) {
@@ -438,14 +445,24 @@ dosurface:
 				sdl.clip.x=(Sint16)((sdl.desktop.full.width-width)/2);
 				sdl.clip.y=(Sint16)((sdl.desktop.full.height-height)/2);
 				sdl.surface=SDL_SetVideoMode(sdl.desktop.full.width,sdl.desktop.full.height,bpp,
-					SDL_FULLSCREEN | ((flags & GFX_CAN_RANDOM) ? SDL_SWSURFACE : SDL_HWSURFACE) |
-					(sdl.desktop.doublebuf ? SDL_DOUBLEBUF|SDL_ASYNCBLIT : 0) | SDL_HWPALETTE);
+					SDL_FULLSCREEN | 
+#ifdef WASTELAND
+					SDL_SWSURFACE
+#else
+					((flags & GFX_CAN_RANDOM) ? SDL_SWSURFACE : SDL_HWSURFACE)
+#endif
+					|(sdl.desktop.doublebuf ? SDL_DOUBLEBUF|SDL_ASYNCBLIT : 0) | SDL_HWPALETTE);
 				if (sdl.surface == NULL) E_Exit("Could not set fullscreen video mode %ix%i-%i: %s",sdl.desktop.full.width,sdl.desktop.full.height,bpp,SDL_GetError());
 			} else {
 				sdl.clip.x=0;sdl.clip.y=0;
 				sdl.surface=SDL_SetVideoMode(width,height,bpp,
-					SDL_FULLSCREEN | ((flags & GFX_CAN_RANDOM) ? SDL_SWSURFACE : SDL_HWSURFACE) |
-					(sdl.desktop.doublebuf ? SDL_DOUBLEBUF|SDL_ASYNCBLIT  : 0)|SDL_HWPALETTE);
+					SDL_FULLSCREEN | 
+#ifdef WASTELAND
+					SDL_SWSURFACE
+#else
+					((flags & GFX_CAN_RANDOM) ? SDL_SWSURFACE : SDL_HWSURFACE)
+#endif
+					|(sdl.desktop.doublebuf ? SDL_DOUBLEBUF|SDL_ASYNCBLIT  : 0)|SDL_HWPALETTE);
 				if (sdl.surface == NULL)
 					E_Exit("Could not set fullscreen video mode %ix%i-%i: %s",width,height,bpp,SDL_GetError());
 			}
@@ -694,6 +711,19 @@ static void SwitchFullScreen(bool pressed) {
 	GFX_SwitchFullScreen();
 }
 
+#ifdef WASTELAND
+void * GFX_GetBlitPix(int& w, int& h) {
+	SDL_Surface* pSurface = sdl.blit.surface ? sdl.blit.surface : sdl.surface;
+	if( pSurface )
+	{
+		w = pSurface->w;
+		h = pSurface->h;
+		return pSurface->pixels;
+	}
+	w = h = 0;
+	return NULL;
+}
+#endif
 
 bool GFX_StartUpdate(Bit8u * & pixels,Bitu & pitch) {
 	if (!sdl.active || sdl.updating)
@@ -779,6 +809,10 @@ void GFX_EndUpdate( const Bit16u *changedLines ) {
 					if (rect->h + rect->y > sdl.surface->h) {
 						LOG_MSG("WTF %d +  %d  >%d",rect->h,rect->y,sdl.surface->h);
 					}
+#elif defined WASTELAND
+					if (rect->h + rect->y > sdl.surface->h) {
+						rectCount--;
+					}
 #endif
 					y += changedLines[index];
 				}
@@ -786,6 +820,10 @@ void GFX_EndUpdate( const Bit16u *changedLines ) {
 			}
 			if (rectCount)
 				SDL_UpdateRects( sdl.surface, rectCount, sdl.updateRects );
+
+#ifdef WASTELAND
+			WastelandEXT::Update( sdl.surface );
+#endif
 		}
 		break;
 #if (HAVE_DDRAW_H) && defined(WIN32)
@@ -980,13 +1018,25 @@ static void OutputString(Bitu x,Bitu y,const char * text,Bit32u color,Bit32u col
 		}
 		text++;
 		draw+=8;
-	}
+	}			
 }
 
-static unsigned char logo[32*32*4]= {
+#ifdef WASTELAND
+#define LOGO_DEPTH 3
+#else
+#define LOGO_DEPTH 4
+#endif
+
+static unsigned char logo[32*32*LOGO_DEPTH]= {
+#ifdef WASTELAND
+#include "wasteland_logo.h"
+#else
 #include "dosbox_logo.h"
+#endif
 };
+#ifndef WASTELAND
 #include "dosbox_splash.h"
+#endif
 
 //extern void UI_Run(bool);
 static void GUI_StartUp(Section * sec) {
@@ -999,9 +1049,9 @@ static void GUI_StartUp(Section * sec) {
 	/* Set Icon (must be done before any sdl_setvideomode call) */
 	/* But don't set it on OS X, as we use a nicer external icon there. */
 #if WORDS_BIGENDIAN
-	SDL_Surface* logos= SDL_CreateRGBSurfaceFrom((void*)logo,32,32,32,128,0xff000000,0x00ff0000,0x0000ff00,0);
+	SDL_Surface* logos= SDL_CreateRGBSurfaceFrom((void*)logo,32,32,8*LOGO_DEPTH,32*LOGO_DEPTH,0xff000000,0x00ff0000,0x0000ff00,0);
 #else
-	SDL_Surface* logos= SDL_CreateRGBSurfaceFrom((void*)logo,32,32,32,128,0x000000ff,0x0000ff00,0x00ff0000,0);
+	SDL_Surface* logos= SDL_CreateRGBSurfaceFrom((void*)logo,32,32,8*LOGO_DEPTH,32*LOGO_DEPTH,0x000000ff,0x0000ff00,0x00ff0000,0);
 #endif
 	SDL_WM_SetIcon(logos,NULL);
 #endif
@@ -1148,15 +1198,31 @@ static void GUI_StartUp(Section * sec) {
 	} /* OPENGL is requested end */
 
 #endif	//OPENGL
+
+#ifdef WASTELAND
+   const int SPLASH_W = 1280;
+   const int SPLASH_H = 720;
+#else
+   const int SPLASH_W = 640;
+   const int SPLASH_H = 400;
+#endif
 	/* Initialize screen for first time */
-	sdl.surface=SDL_SetVideoMode(640,400,0,0);
+	sdl.surface=SDL_SetVideoMode(SPLASH_W,SPLASH_H,0,
+#ifdef WASTELAND
+								 sdl.desktop.fullscreen ? SDL_FULLSCREEN :
+#endif
+								 0);
 	if (sdl.surface == NULL) E_Exit("Could not initialize video: %s",SDL_GetError());
 	sdl.desktop.bpp=sdl.surface->format->BitsPerPixel;
 	if (sdl.desktop.bpp==24) {
 		LOG_MSG("SDL:You are running in 24 bpp mode, this will slow down things!");
 	}
 	GFX_Stop();
+#ifdef WASTELAND
+	SDL_WM_SetCaption("Wasteland",VERSION);
+#else
 	SDL_WM_SetCaption("DOSBox",VERSION);
+#endif
 
 /* The endian part is intentionally disabled as somehow it produces correct results without according to rhoenie*/
 //#if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -1170,17 +1236,31 @@ static void GUI_StartUp(Section * sec) {
 //#endif
 
 /* Please leave the Splash screen stuff in working order in DOSBox. We spend a lot of time making DOSBox. */
-	SDL_Surface* splash_surf = SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 400, 32, rmask, gmask, bmask, 0);
+	SDL_Surface* splash_surf = SDL_CreateRGBSurface(SDL_SWSURFACE, SPLASH_W, SPLASH_H, 32, rmask, gmask, bmask, 0);
 	if (splash_surf) {
 		SDL_FillRect(splash_surf, NULL, SDL_MapRGB(splash_surf->format, 0, 0, 0));
 
-		Bit8u* tmpbufp = new Bit8u[640*400*3];
+		Bit32u tmpbufsize = SPLASH_W*SPLASH_H*3;
+		Bit8u* tmpbufp = new Bit8u[tmpbufsize];
+#ifdef WASTELAND
+	FILE* splashfp = fopen("splash.bin", "rb");
+	if( splashfp )
+	{
+	while(1)
+	{
+		int readSize = fread( tmpbufp, 1, tmpbufsize, splashfp );
+		if( readSize != tmpbufsize )
+		{
+			break;
+		}
+#else
 		GIMP_IMAGE_RUN_LENGTH_DECODE(tmpbufp,gimp_image.rle_pixel_data,640*400,3);
-		for (Bitu y=0; y<400; y++) {
+#endif
+		for (Bitu y=0; y<SPLASH_H; y++) {
 
-			Bit8u* tmpbuf = tmpbufp + y*640*3;
+			Bit8u* tmpbuf = tmpbufp + y*SPLASH_W*3;
 			Bit32u * draw=(Bit32u*)(((Bit8u *)splash_surf->pixels)+((y)*splash_surf->pitch));
-			for (Bitu x=0; x<640; x++) {
+			for (Bitu x=0; x<SPLASH_W; x++) {
 //#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 //				*draw++ = tmpbuf[x*3+2]+tmpbuf[x*3+1]*0x100+tmpbuf[x*3+0]*0x10000+0x00000000;
 //#else
@@ -1191,8 +1271,18 @@ static void GUI_StartUp(Section * sec) {
 
 		bool exit_splash = false;
 
+#ifdef WASTELAND
+#ifdef _DEBUG
+		static Bitu max_splash_loop = 300;
+		static Bitu splash_fade = 100;
+#else
+		static Bitu max_splash_loop = 3000;
+		static Bitu splash_fade = 1000;
+#endif
+#else
 		static Bitu max_splash_loop = 600;
 		static Bitu splash_fade = 100;
+#endif
 		static bool use_fadeout = true;
 
 		for (Bit32u ct = 0,startticks = GetTicks();ct < max_splash_loop;ct = GetTicks()-startticks) {
@@ -1225,15 +1315,46 @@ static void GUI_StartUp(Section * sec) {
 			SDL_FillRect(sdl.surface, NULL, SDL_MapRGB(sdl.surface->format, 0, 0, 0));
 			SDL_Flip(sdl.surface);
 		}
+#ifdef WASTELAND
+	}
+	fclose(splashfp);
+	}
+#endif
 		SDL_FreeSurface(splash_surf);
 		delete [] tmpbufp;
-
 	}
 
+#ifdef WASTELAND
+	/*
+	int audio_rate = 22050;
+	Uint16 audio_format = AUDIO_S16SYS;
+	int audio_channels = 2;
+	int audio_buffers = 4096;
+ 
+	if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) == 0)
+	{
+		Mix_Music *music; music = Mix_LoadMUS("bgmusic.ogg");
+		if(music != NULL)
+		{
+			Mix_PlayMusic(music, -1);
+		}
+	}
+	*/
+#endif
 	/* Get some Event handlers */
+#ifdef WASTELAND
+#ifdef MACOSX
+	MAPPER_AddHandler(KillSwitch,MK_q,MMOD3,"shutdown","ShutDown");
+	MAPPER_AddHandler(SwitchFullScreen,MK_f,MMOD3,"fullscr","Fullscreen");
+#else
+	MAPPER_AddHandler(KillSwitch,MK_f4,MMOD2,"shutdown","ShutDown");
+	MAPPER_AddHandler(SwitchFullScreen,MK_return,MMOD2,"fullscr","Fullscreen");
+#endif
+#else
 	MAPPER_AddHandler(KillSwitch,MK_f9,MMOD1,"shutdown","ShutDown");
 	MAPPER_AddHandler(CaptureMouse,MK_f10,MMOD1,"capmouse","Cap Mouse");
 	MAPPER_AddHandler(SwitchFullScreen,MK_return,MMOD2,"fullscr","Fullscreen");
+#endif
 #if C_DEBUG
 	/* Pause binds with activate-debugger */
 #else
@@ -1263,6 +1384,73 @@ static void HandleMouseMotion(SDL_MouseMotionEvent * motion) {
 						  sdl.mouse.locked);
 }
 
+#ifdef WASTELAND
+
+enum Pending
+{
+	NONE,
+	PRESSED,
+	PENDING_HOLD,
+	HELD
+};
+
+#define HOLD_TILL_RELEASE 4
+#define HOLD_TILL_REPEAT 512
+static Bit32u sButtonTime[3] = { 0, 0, 0 };
+static Pending sButtonPending[3] = { NONE, NONE, NONE };
+
+static void UpdateMouseButtons() {
+	for( int i = 0; i < 3; ++i ) {
+		Bit32u dt = GetTicks() - sButtonTime[i];
+		if( dt >= HOLD_TILL_RELEASE && sButtonPending[i] == PRESSED ) {
+			Mouse_ButtonReleased(i);
+			sButtonPending[i] = PENDING_HOLD;
+		}
+		if( dt >= HOLD_TILL_REPEAT && sButtonPending[i] == PENDING_HOLD ) {
+			Mouse_ButtonPressed(i);
+			sButtonPending[i] = HELD;
+		}
+	}
+}
+
+static void Mouse_ClearPendingEvents(int button)
+{
+	if( sButtonPending[button] == PRESSED || sButtonPending[button] == HELD )
+	{
+		Mouse_ButtonReleased(button);
+	}
+	sButtonTime[button] = 0;
+	sButtonPending[button] = NONE;
+}
+static inline void MOUSE_BUTTON_PRESSED(int button) {
+	if( WastelandEXT::MouseEvent(button, true) )
+	{
+		Mouse_ClearPendingEvents(button);
+		return;
+	}
+	Mouse_ButtonPressed(button);
+	sButtonTime[button] = GetTicks();
+	sButtonPending[button] = PRESSED;
+}
+
+static inline void MOUSE_BUTTON_RELEASED(int button) {
+	if( WastelandEXT::MouseEvent(button, false) )
+	{
+		Mouse_ClearPendingEvents(button);
+		return;
+	}
+	if( sButtonPending[button] == HELD ) {
+		Mouse_ButtonReleased(button);
+	}
+	sButtonTime[button] = 0;
+	sButtonPending[button] = NONE;
+}
+
+#else
+#define MOUSE_BUTTON_PRESSED Mouse_ButtonPressed
+#define MOUSE_BUTTON_RELEASED Mouse_ButtonPressed
+#endif
+
 static void HandleMouseButton(SDL_MouseButtonEvent * button) {
 	switch (button->state) {
 	case SDL_PRESSED:
@@ -1277,27 +1465,46 @@ static void HandleMouseButton(SDL_MouseButtonEvent * button) {
 		}
 		switch (button->button) {
 		case SDL_BUTTON_LEFT:
-			Mouse_ButtonPressed(0);
+			MOUSE_BUTTON_PRESSED(0);
 			break;
 		case SDL_BUTTON_RIGHT:
-			Mouse_ButtonPressed(1);
+			MOUSE_BUTTON_PRESSED(1);
 			break;
 		case SDL_BUTTON_MIDDLE:
-			Mouse_ButtonPressed(2);
+			MOUSE_BUTTON_PRESSED(2);
 			break;
+
+#ifdef WASTELAND
+		case SDL_BUTTON_WHEELUP:
+			WastelandEXT::MouseEvent(3, true);
+			break;
+
+		case SDL_BUTTON_WHEELDOWN:
+			WastelandEXT::MouseEvent(4, true);
+			break;
+#endif
 		}
 		break;
 	case SDL_RELEASED:
 		switch (button->button) {
 		case SDL_BUTTON_LEFT:
-			Mouse_ButtonReleased(0);
+			MOUSE_BUTTON_RELEASED(0);
 			break;
 		case SDL_BUTTON_RIGHT:
-			Mouse_ButtonReleased(1);
+			MOUSE_BUTTON_RELEASED(1);
 			break;
 		case SDL_BUTTON_MIDDLE:
-			Mouse_ButtonReleased(2);
+			MOUSE_BUTTON_RELEASED(2);
 			break;
+#ifdef WASTELAND
+		case SDL_BUTTON_WHEELUP:
+			WastelandEXT::MouseEvent(3, false);
+			break;
+
+		case SDL_BUTTON_WHEELDOWN:
+			WastelandEXT::MouseEvent(4, false);
+			break;
+#endif		
 		}
 		break;
 	}
@@ -1319,6 +1526,9 @@ void GFX_Events() {
 		if (sdl.num_joysticks>0) SDL_JoystickUpdate();
 		MAPPER_UpdateJoysticks();
 	}
+#endif
+#ifdef WASTELAND
+	UpdateMouseButtons();
 #endif
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
@@ -1665,10 +1875,12 @@ static void erasemapperfile() {
 }
 
 
-
 //extern void UI_Init(void);
 int main(int argc, char* argv[]) {
 	try {
+#ifdef WASTELAND
+		WastelandEXT::Init();
+#endif
 		CommandLine com_line(argc,argv);
 		Config myconf(&com_line);
 		control=&myconf;
@@ -1686,14 +1898,22 @@ int main(int argc, char* argv[]) {
 
 		/* Can't disable the console with debugger enabled */
 #if defined(WIN32) && !(C_DEBUG)
+#ifdef WASTELAND
+		if (1) {
+#else
 		if (control->cmdline->FindExist("-noconsole")) {
+#endif
 			FreeConsole();
+#ifdef WASTELAND
+			no_stdout = true;
+#else
 			/* Redirect standard input and standard output */
 			if(freopen(STDOUT_FILE, "w", stdout) == NULL)
 				no_stdout = true; // No stdout so don't write messages
 			freopen(STDERR_FILE, "w", stderr);
 			setvbuf(stdout, NULL, _IOLBF, BUFSIZ);	/* Line buffered */
 			setbuf(stderr, NULL);					/* No buffering */
+#endif
 		} else {
 			if (AllocConsole()) {
 				fclose(stdin);
@@ -1705,6 +1925,8 @@ int main(int argc, char* argv[]) {
 			}
 			SetConsoleTitle("DOSBox Status Window");
 		}
+#elif defined(WASTELAND)
+		no_stdout = true;
 #endif  //defined(WIN32) && !(C_DEBUG)
 		if (control->cmdline->FindExist("-version") ||
 		    control->cmdline->FindExist("--version") ) {
@@ -1788,6 +2010,11 @@ int main(int argc, char* argv[]) {
 #endif
 	sdl.num_joysticks=SDL_NumJoysticks();
 
+#ifdef WASTELAND
+	std::string config_dir;
+	Cross::GetPlatformConfigDir(config_dir);
+	control->ParseConfigFile( (config_dir + "/wl.conf").c_str() );
+#else
 	/* Parse configuration files */
 	std::string config_file,config_path;
 	bool parsed_anyconfigfile = false;
@@ -1843,7 +2070,7 @@ int main(int argc, char* argv[]) {
 			LOG_MSG("CONFIG: Using default settings. Create a configfile to change them");
 		}
 	}
-
+#endif
 
 #if (ENVIRON_LINKED)
 		control->ParseEnv(environ);
@@ -1896,6 +2123,11 @@ int main(int argc, char* argv[]) {
 	SDL_ShowCursor(SDL_ENABLE);
 
 	SDL_Quit();//Let's hope sdl will quit as well when it catches an exception
+
+#ifdef WASTELAND
+		WastelandEXT::Purge();
+#endif
+
 	return 0;
 }
 

@@ -58,12 +58,24 @@ static void W32_ConfDir(std::string& in,bool create) {
 void Cross::GetPlatformConfigDir(std::string& in) {
 #ifdef WIN32
 	W32_ConfDir(in,false);
+#ifdef WASTELAND
+	in += "\\inXile entertainment\\Wasteland";
+#else
 	in += "\\DOSBox";
+#endif
 #elif defined(MACOSX)
+#ifdef WASTELAND
+	in = "~/Library/Application Support/Wasteland";
+#else
 	in = "~/Library/Preferences";
+#endif
 	ResolveHomedir(in);
 #else
+#ifdef WASTELAND
+	in = "~/.wasteland";
+#else
 	in = "~/.dosbox";
+#endif
 	ResolveHomedir(in);
 #endif
 	in += CROSS_FILESPLIT;
@@ -83,14 +95,31 @@ void Cross::GetPlatformConfigName(std::string& in) {
 void Cross::CreatePlatformConfigDir(std::string& in) {
 #ifdef WIN32
 	W32_ConfDir(in,true);
+#ifdef WASTELAND
+	in += "\\inXile entertainment";
+	mkdir(in.c_str());
+	in += "\\Wasteland";
+#else
 	in += "\\DOSBox";
+#endif
 	mkdir(in.c_str());
 #elif defined(MACOSX)
+#ifdef WASTELAND
+	in = "~/Library/Application Support/Wasteland";
+#else
 	in = "~/Library/Preferences/";
+#endif
 	ResolveHomedir(in);
+#ifdef WASTELAND
+	mkdir(in.c_str(),0700);
+#endif
 	//Don't create it. Assume it exists
 #else
+#ifdef WASTELAND
+	in = "~/.wasteland";
+#else
 	in = "~/.dosbox";
+#endif
 	ResolveHomedir(in);
 	mkdir(in.c_str(),0700);
 #endif

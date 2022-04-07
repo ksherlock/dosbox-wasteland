@@ -54,6 +54,10 @@
 #define MIXER_REMAIN ((1<<MIXER_SHIFT)-1)
 #define MIXER_VOLSHIFT 13
 
+#ifdef WASTELAND
+#include "wasteland_ext.h"
+#endif
+
 static INLINE Bit16s MIXER_CLIP(Bits SAMP) {
 	if (SAMP < MAX_AUDIO) {
 		if (SAMP > MIN_AUDIO)
@@ -421,7 +425,12 @@ static void MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
 	if (mixer.done < need) {
 //		LOG_MSG("Full underrun need %d, have %d, min %d", need, mixer.done, mixer.min_needed);
 		if((need - mixer.done) > (need >>7) ) //Max 1 procent stretch.
+		{
+#ifdef WASTELAND
+			WastelandEXT::UpdateAudio(stream, len);
+#endif
 			return;
+		}
 		reduce = mixer.done;
 		index_add = (reduce << MIXER_SHIFT) / need;
 		mixer.tick_add = ((mixer.freq+mixer.min_needed) << MIXER_SHIFT)/1000;
@@ -514,6 +523,10 @@ static void MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
 			pos++;
 		}
 	}
+	
+#ifdef WASTELAND
+	WastelandEXT::UpdateAudio(stream, len);
+#endif
 }
 
 static void MIXER_Stop(Section* sec) {
@@ -612,7 +625,6 @@ MixerObject::~MixerObject(){
 	MIXER_DelChannel(MIXER_FindChannel(m_name));
 }
 
-
 void MIXER_Init(Section* sec) {
 	sec->AddDestroyFunction(&MIXER_Stop);
 
@@ -657,6 +669,9 @@ void MIXER_Init(Section* sec) {
 		mixer.freq=obtained.freq;
 		mixer.blocksize=obtained.samples;
 		mixer.tick_add=(mixer.freq << MIXER_SHIFT)/1000;
+		#ifdef WASTELAND
+		WastelandEXT::InitAudio(&obtained);
+		#endif
 		TIMER_AddTickHandler(MIXER_Mix);
 		SDL_PauseAudio(0);
 	}
@@ -667,3 +682,4 @@ void MIXER_Init(Section* sec) {
 	mixer.needed=mixer.min_needed+1;
 	PROGRAMS_MakeFile("MIXER.COM",MIXER_ProgramStart);
 }
+
